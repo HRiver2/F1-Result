@@ -1,0 +1,16 @@
+# Local runtime/cache files
+.avatar-cache/
+server.js
+
+# Local editing variants (keep only index.html for remote uniqueness)
+F1(2).html
+F1-Pages.html
+
+# Unused local font assets
+HarmonyOS_*.ttf
+Formula1-Wide_web_0.ttf
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/

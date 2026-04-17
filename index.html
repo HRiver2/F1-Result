@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 发车顺位图 / 结果表</title>
+    <style>
+        @font-face {
+            font-family: "Formula1-Regular";
+            src: url("Formula1-Regular_web_0.ttf") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: "Formula1-Bold";
+            src: url("Formula1-Bold_web_0.ttf") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* 全局基础重置与背景 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            /* 深色对角线斜纹理 */
+            background: repeating-linear-gradient(
+                -45deg,
+                #0f1012,
+                #0f1012 20px,
+                #1a1b1f 20px,
+                #1a1b1f 40px
+            );
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 20px 28px;
+            gap: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(10, 10, 12, 0.82);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+            width: min(1366px, calc(100vw - 24px));
+            justify-content: center;
+        }
+
+        .toolbar button {
+            border: 0;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(90deg, #e10600, #ff3b30);
+            cursor: pointer;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .toolbar .hint {
+            font-size: 12px;
+            color: #b8b8b8;
+            letter-spacing: 0.2px;
+        }
+
+        .control-panel {
+            width: min(1366px, calc(100vw - 24px));
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(10, 10, 12, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .control-panel label {
+            font-size: 12px;
+            color: #d7d7d7;
+        }
+
+        .control-panel input,
+        .control-panel select {
+            height: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.07);
+            color: #fff;
+            border-radius: 8px;
+            padding: 0 8px;
+            outline: none;
+        }
+
+        .control-panel select {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+        }
+
+        .control-panel select option {
+            background: #2a2a2a;
+            color: #fff;
+            padding: 4px 0;
+        }
+
+        .control-panel input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #e10600;
+        }
+
+        .control-panel .field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-panel .panel-btn {
+            height: 32px;
+            border: 0;
+            border-radius: 8px;
+            padding: 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(90deg, #e10600, #ff3b30);
+            cursor: pointer;
+        }
+
+        .control-panel .status {
+            font-size: 12px;
+            color: #f8df8f;
+            margin-left: auto;
+        }
+
+        .export-stage {
+            width: 1366px;
+            aspect-ratio: 16 / 9;
+            padding: 56px 96px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: repeating-linear-gradient(
+                -45deg,
+                #0f1012,
+                #0f1012 20px,
+                #1a1b1f 20px,
+                #1a1b1f 40px
+            );
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        /* 主体容器 */
+        .grid-container {
+            position: relative;
+            display: flex;
+            background-color: transparent;
+            width: 100%;
+            max-width: 1120px;
+            padding-top: 40px; 
+        }
+
+        /* 右上角赛事信息区 */
+        .race-info {
+            position: absolute;
+            top: 0;
+            right: 20px;
+            color: #ffff00;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        /* 左侧：发车顺位大字区域 (修复了布局) */
+        .left-banner {
+            width: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+        }
+
+        /* F1 官方 Logo 图片容器 */
+        .f1-official-container {
+            width: 300px; /* 调整你的 F1 logo 宽度 */
+            margin-bottom: -30px;
+        }
+
+        .f1-official-container img {
+            width: 75%;
+            height: auto;
+            display: block;
+        }
+
+        /* 修复后的垂直标题：纯 Flexbox，不使用绝对定位 */
+        .title-text {
+    /* 1. 关键：逆时针旋转 90 度 */
+    transform: rotate(-90deg);
+
+    /* 2. 关键：确保旋转中心在左上角或中心，方便对齐 */
+    transform-origin: center center;
+
+    /* 3. 样式微调：还原原图的厚重感 */
+    font-size: 80px;      /* 字体加大 */
+    font-weight: 900;
+    color: #ffffff;
+    white-space: nowrap;  /* 强制不换行，确保四个字在一行旋转 */
+    
+    /* 4. 布局微调：因为旋转后会"飘"走，需要通过定位拉回来 */
+    position: absolute;
+    top: 50%;
+    left: -10%;
+    margin-left: -40px;   /* 根据实际效果微调左右位置 */
+}
+
+        /* 右侧：车手顺位网格 */
+        .drivers-board {
+            display: flex;
+            gap: 40px;
+            flex-grow: 1;
+        }
+
+        /* 左列：整体上移，形成阶梯感 */
+.col-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    margin-top: 0px; /* keep on the top */
+}
+
+/* 右列：保持在下部，或者微调 */
+.col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    margin-top: 40px; /* 往下拉一点 */
+}
+
+        /* 车手方块 */
+        .driver-card {
+            --bg: #444444;
+            --color: #ffffff;
+            display: flex;
+            height: 44px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.6);
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 100%), var(--bg);
+            cursor: pointer;
+            transition: outline-color 0.15s ease;
+        }
+
+        .driver-card.is-selected {
+            outline: 2px solid #ffe66d;
+            outline-offset: 1px;
+        }
+
+        /* 车队主题标签：统一管理卡片颜色 */
+        .team-ferrari {
+            --bg: #E8002D;
+            --color: #FFF;
+        }
+
+        .team-redbull {
+            --bg: #0600EF;
+            --color: #FFF;
+        }
+
+        .team-mclaren {
+            --bg: #FCA849;
+            --color: #FFF;
+        }
+
+        .team-haas {
+            --bg: #FFFFFF;
+            --color: #000;
+        }
+
+        .team-mercedes {
+            --bg: #00D2BE;
+            --color: #000;
+        }
+
+        .team-aston {
+            --bg: #006F62;
+            --color: #FFF;
+        }
+
+        .team-rb {
+            --bg: #6692FF;
+            --color: #FFF;
+        }
+
+        .team-sauber {
+            --bg: #52E252;
+            --color: #000;
+        }
+
+        .team-williams {
+            --bg: #005AFF;
+            --color: #FFF;
+        }
+
+        .team-alpine {
+            --bg: #0082FA;
+            --color: #FFF;
+        }
+
+        /* 状态标签：退赛统一样式 */
+        .is-retired {
+            --bg: #555555;
+            --color: #CCC;
+        }
+
+        .position {
+            width: 45px;
+            background-color: #e10600;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 900;
+            font-family: "Formula1-Bold", "PingFang SC", "Microsoft YaHei", sans-serif;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+
+        .col-right .position {
+            background-color: #c80000;
+        }
+
+        .info {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            z-index: 1;
+            min-width: 0;
+        }
+
+        /* 车队 Logo 图片容器 */
+        .team-logo {
+            width: 40px;
+            height: 24px;
+            margin-right: 15px;
+            background-color: transparent; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .team-logo img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* 解决图片尺寸不一 */
+        }
+
+        /* 退赛车手的图标统一变灰 */
+        .driver-card.is-retired .team-logo img {
+            filter: grayscale(1) brightness(0.7);
+            opacity: 0.6;
+        }
+
+        /* 头像与名字 */
+        .driver-pic {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.3);
+            margin-right: 15px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .driver-pic img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        .driver-name {
+            flex: 1;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: "Formula1-Regular", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--color);
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            min-width: 0;
+        }
+
+        .driver-name.is-two-lines {
+            font-size: 18px;
+            white-space: normal;
+            text-overflow: unset;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            line-height: 1.05;
+        }
+    </style>
+</head>
+<body>
+    <div class="export-stage" id="exportStage">
+
+    <div class="grid-container">
+
+        <div class="race-info" id="raceInfoText">水友赛巴林站 / 结果表</div>
+        
+        <div class="left-banner">
+            <div class="f1-official-container">
+                <img src="EAS_F125_Primary_Horizontal_White_rgb.avif" alt="F1 Logo">
+            </div>
+            <div class="title-text">比赛结果</div>
+        </div>
+
+        <div class="drivers-board">
+            
+            <div class="col-left">
+                <div class="driver-card team-ferrari" data-qq="3227326788">
+                    <div class="position">1</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="6_ferrari.avif" alt="Ferrari">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Suburbanite</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-redbull" data-qq="3255487303">
+                    <div class="position">2</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="5_redbull.avif" alt="Red Bull">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">QiTongwei.Eureka</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-ferrari" data-qq="3296766697">
+                    <div class="position">3</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="6_ferrari.avif" alt="Ferrari">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">辉辉头不大</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-mclaren" data-qq="3187024543">
+                    <div class="position">4</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="8_mclaren.avif" alt="McLaren">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Mr.benzedrine</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-haas" data-qq="2194173019">
+                    <div class="position">5</div>
+                    <div class="info">
+                       <div class="team-logo">
+                            <img src="2_moneygram_haas.avif" alt="Haas">
+                       </div>
+                       <div class="driver-pic"></div>
+                       <div class="driver-name">Kagamine RIN</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-mercedes" data-qq="3030561972">
+                    <div class="position">6</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="3_mercedes_amg_petronas.avif" alt="Mercedes">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Naucha</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-haas" data-qq="2976056300">
+                    <div class="position">7</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="2_moneygram_haas.avif" alt="Haas">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Penguin H</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-mercedes" data-qq="2043630375">
+                    <div class="position">8</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="3_mercedes_amg_petronas.avif" alt="Mercedes">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">KevinMohors</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-right">
+                <div class="driver-card team-mclaren" data-qq="836612877">
+                    <div class="position">9</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="8_mclaren.avif" alt="McLaren">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Paul WalkerF1</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-aston" data-qq="1003303019">
+                    <div class="position">10</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="7_aston_martin.avif" alt="Aston Martin">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">chenhaonan</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-rb" data-qq="2775325622">
+                    <div class="position">11</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="1_visa_cashapp_redbull.avif" alt="RB">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">KimiLEcVettel</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-sauber" data-qq="3573822301">
+                    <div class="position">12</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="4_kick_sauber.avif" alt="Sauber">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">崩崩雷大炮</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-aston is-retired" data-qq="530052022">
+                    <div class="position">13</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="7_aston_martin.avif" alt="Aston Martin">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">shitou</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-williams is-retired" data-qq="1933093947">
+                    <div class="position">14</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="10_williams_racing.avif" alt="Williams">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">Yepskerdoodles</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-rb is-retired" data-qq="2683389382">
+                    <div class="position">15</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="1_visa_cashapp_redbull.avif" alt="RB">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">The Largest Blender</div>
+                    </div>
+                </div>
+
+                <div class="driver-card team-redbull is-retired" data-qq="869717565">
+                    <div class="position">16</div>
+                    <div class="info">
+                        <div class="team-logo">
+                            <img src="5_redbull.avif" alt="Red Bull">
+                        </div>
+                        <div class="driver-pic"></div>
+                        <div class="driver-name">neo</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div>
+
+    <div class="toolbar no-export">
+        <button id="exportBtn" type="button">导出结果图</button>
+        <span class="hint" id="exportHint">固定 1366x768（16:9），自动下载 PNG</span>
+    </div>
+
+    <div class="control-panel no-export">
+        <div class="field">
+            <label for="raceInfoInput">赛事类型</label>
+            <input id="raceInfoInput" type="text" value="水友赛巴林站 / 结果表" maxlength="36">
+            <button class="panel-btn" id="updateRaceBtn" type="button">更新赛事</button>
+        </div>
+        <div class="field">
+            <label for="driverColumn">列</label>
+            <select id="driverColumn">
+                <option value="left">左列</option>
+                <option value="right">右列</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="driverPosition">名次</label>
+            <input id="driverPosition" type="number" min="1" max="99" value="17" style="width:70px;">
+        </div>
+        <div class="field">
+            <label for="driverNameInput">车手</label>
+            <input id="driverNameInput" type="text" placeholder="输入车手名" maxlength="32" style="width:170px;">
+        </div>
+        <div class="field">
+            <label for="driverQqInput">QQ</label>
+            <input id="driverQqInput" type="text" placeholder="QQ号" maxlength="12" style="width:110px;">
+        </div>
+        <div class="field">
+            <label for="driverTeam">车队</label>
+            <select id="driverTeam">
+                <option value="ferrari">Ferrari</option>
+                <option value="redbull">Red Bull</option>
+                <option value="mclaren">McLaren</option>
+                <option value="haas">Haas</option>
+                <option value="mercedes">Mercedes</option>
+                <option value="aston">Aston Martin</option>
+                <option value="alpine">Alpine</option>
+                <option value="rb">RB</option>
+                <option value="sauber">Sauber</option>
+                <option value="williams">Williams</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="driverRetired">退赛</label>
+            <input id="driverRetired" type="checkbox">
+        </div>
+        <button class="panel-btn" id="addDriverBtn" type="button">添加车手卡片</button>
+        <button class="panel-btn" id="updateDriverBtn" type="button">更新选中卡片</button>
+        <button class="panel-btn" id="deleteDriverBtn" type="button">删除选中卡片</button>
+        <button class="panel-btn" id="clearSelectBtn" type="button">取消选中</button>
+        <span class="status" id="panelStatus">点击卡片可选中并编辑，操作区已移到主内容下方</span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script>
+        const DEFAULT_AVATAR =
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23343a40'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-size='20' fill='white' font-family='Arial,sans-serif'%3EQQ%3C/text%3E%3C/svg%3E";
+        const TEAM_META = {
+            ferrari: { logo: "6_ferrari.avif", alt: "Ferrari" },
+            redbull: { logo: "5_redbull.avif", alt: "Red Bull" },
+            mclaren: { logo: "8_mclaren.avif", alt: "McLaren" },
+            haas: { logo: "2_moneygram_haas.avif", alt: "Haas" },
+            mercedes: { logo: "3_mercedes_amg_petronas.avif", alt: "Mercedes" },
+            aston: { logo: "7_aston_martin.avif", alt: "Aston Martin" },
+            alpine: { logo: "9_bwt_alpine.avif", alt: "Alpine" },
+            rb: { logo: "1_visa_cashapp_redbull.avif", alt: "RB" },
+            sauber: { logo: "4_kick_sauber.avif", alt: "Sauber" },
+            williams: { logo: "10_williams_racing.avif", alt: "Williams" }
+        };
+
+        // GitHub Pages 版本：直接使用 QQ 头像 API，无本地代理
+        function buildQqAvatarUrl(qq) {
+            const size = 100;
+            return "https://q1.qlogo.cn/g?b=qq&nk=" + encodeURIComponent(qq) + "&s=" + size;
+        }
+
+        function isValidQq(qq) {
+            return /^[1-9]\d{4,11}$/.test(qq);
+        }
+
+        function fitDriverNames() {
+            const BASE_FONT_SIZE = 18;
+            const MIN_FONT_SIZE = 12;
+
+            document.querySelectorAll(".driver-name").forEach((nameEl) => {
+                nameEl.classList.remove("is-two-lines");
+                nameEl.style.fontSize = BASE_FONT_SIZE + "px";
+
+                while (
+                    nameEl.scrollWidth > nameEl.clientWidth &&
+                    parseFloat(nameEl.style.fontSize) > MIN_FONT_SIZE
+                ) {
+                    const nextSize = parseFloat(nameEl.style.fontSize) - 0.5;
+                    nameEl.style.fontSize = nextSize + "px";
+                }
+
+                if (nameEl.scrollWidth > nameEl.clientWidth) {
+                    nameEl.style.fontSize = BASE_FONT_SIZE + "px";
+                    nameEl.classList.add("is-two-lines");
+                }
+            });
+        }
+
+        function applyAvatarForCard(card) {
+            const qq = (card.dataset.qq || "").trim();
+            const avatarWrap = card.querySelector(".driver-pic");
+            if (!avatarWrap) return;
+            avatarWrap.innerHTML = "";
+
+            const avatarImg = document.createElement("img");
+            avatarImg.alt = "QQ Avatar";
+            avatarImg.loading = "eager";
+            avatarImg.referrerPolicy = "no-referrer";
+            avatarImg.decoding = "async";
+
+            // 错误处理：加载失败时降级到默认头像
+            avatarImg.onerror = () => {
+                console.warn("Failed to load avatar for QQ: " + qq);
+                avatarImg.src = DEFAULT_AVATAR;
+            };
+
+            avatarImg.src = isValidQq(qq) ? buildQqAvatarUrl(qq) : DEFAULT_AVATAR;
+            avatarWrap.appendChild(avatarImg);
+        }
+
+        function createDriverCard({ position, name, qq, team, retired }) {
+            const meta = TEAM_META[team] || TEAM_META.ferrari;
+            const safeName = (name || "New Driver").trim() || "New Driver";
+
+            const card = document.createElement("div");
+            card.className = "driver-card team-" + team + (retired ? " is-retired" : "");
+            card.dataset.qq = qq || "";
+            card.innerHTML =
+                "<div class=\"position\">" + position + "</div>" +
+                "<div class=\"info\">" +
+                "<div class=\"team-logo\"><img src=\"" + meta.logo + "\" alt=\"" + meta.alt + "\"></div>" +
+                "<div class=\"driver-pic\"></div>" +
+                "<div class=\"driver-name\">" + safeName + "</div>" +
+                "</div>";
+
+            applyAvatarForCard(card);
+            return card;
+        }
+
+        function initializeCards() {
+            document.querySelectorAll(".driver-card").forEach((card) => {
+                applyAvatarForCard(card);
+            });
+            fitDriverNames();
+        }
+
+        let selectedCard = null;
+
+        function getCardTeam(card) {
+            const teamClass = Array.from(card.classList).find((cls) => cls.startsWith("team-"));
+            return teamClass ? teamClass.replace("team-", "") : "ferrari";
+        }
+
+        function getCardColumn(card) {
+            const col = card.closest(".col-right") ? "right" : "left";
+            return col;
+        }
+
+        function setControlValuesFromCard(card) {
+            document.getElementById("driverColumn").value = getCardColumn(card);
+            document.getElementById("driverPosition").value = card.querySelector(".position")?.textContent.trim() || "";
+            document.getElementById("driverNameInput").value = card.querySelector(".driver-name")?.textContent.trim() || "";
+            document.getElementById("driverQqInput").value = card.dataset.qq || "";
+            document.getElementById("driverTeam").value = getCardTeam(card);
+            document.getElementById("driverRetired").checked = card.classList.contains("is-retired");
+        }
+
+        function selectCard(card) {
+            if (selectedCard) {
+                selectedCard.classList.remove("is-selected");
+            }
+            selectedCard = card;
+            if (selectedCard) {
+                selectedCard.classList.add("is-selected");
+                setControlValuesFromCard(selectedCard);
+            }
+        }
+
+        function clearCardSelection() {
+            if (selectedCard) {
+                selectedCard.classList.remove("is-selected");
+            }
+            selectedCard = null;
+        }
+
+        function showPanelStatus(message) {
+            const status = document.getElementById("panelStatus");
+            status.textContent = message;
+        }
+
+        document.getElementById("updateRaceBtn").addEventListener("click", () => {
+            const raceText = document.getElementById("raceInfoInput").value.trim();
+            document.getElementById("raceInfoText").textContent = raceText || "未命名赛事 / 结果表";
+            showPanelStatus("赛事信息已更新");
+        });
+
+        document.getElementById("exportStage").addEventListener("click", (event) => {
+            const card = event.target.closest(".driver-card");
+            if (!card) return;
+            selectCard(card);
+            showPanelStatus("已选中卡片，可更新或删除");
+        });
+
+        document.getElementById("addDriverBtn").addEventListener("click", () => {
+            const column = document.getElementById("driverColumn").value;
+            const position = document.getElementById("driverPosition").value.trim();
+            const name = document.getElementById("driverNameInput").value.trim();
+            const qq = document.getElementById("driverQqInput").value.trim();
+            const team = document.getElementById("driverTeam").value;
+            const retired = document.getElementById("driverRetired").checked;
+
+            if (!position || Number(position) <= 0) {
+                showPanelStatus("名次需要是正整数");
+                return;
+            }
+
+            if (!name) {
+                showPanelStatus("请填写车手名");
+                return;
+            }
+
+            const targetCol = column === "right"
+                ? document.querySelector(".col-right")
+                : document.querySelector(".col-left");
+
+            const card = createDriverCard({
+                position,
+                name,
+                qq,
+                team,
+                retired
+            });
+
+            targetCol.appendChild(card);
+            selectCard(card);
+            fitDriverNames();
+            showPanelStatus("已添加 " + name + "（P" + position + "）");
+
+            document.getElementById("driverPosition").value = String(Number(position) + 1);
+            document.getElementById("driverNameInput").value = "";
+            document.getElementById("driverQqInput").value = "";
+            document.getElementById("driverRetired").checked = false;
+        });
+
+        document.getElementById("updateDriverBtn").addEventListener("click", () => {
+            if (!selectedCard) {
+                showPanelStatus("请先点击一张卡片进行选中");
+                return;
+            }
+
+            const column = document.getElementById("driverColumn").value;
+            const position = document.getElementById("driverPosition").value.trim();
+            const name = document.getElementById("driverNameInput").value.trim();
+            const qq = document.getElementById("driverQqInput").value.trim();
+            const team = document.getElementById("driverTeam").value;
+            const retired = document.getElementById("driverRetired").checked;
+
+            if (!position || Number(position) <= 0) {
+                showPanelStatus("名次需要是正整数");
+                return;
+            }
+
+            if (!name) {
+                showPanelStatus("请填写车手名");
+                return;
+            }
+
+            const meta = TEAM_META[team] || TEAM_META.ferrari;
+            selectedCard.className = "driver-card team-" + team + (retired ? " is-retired" : "") + " is-selected";
+            selectedCard.dataset.qq = qq;
+
+            const posEl = selectedCard.querySelector(".position");
+            const nameEl = selectedCard.querySelector(".driver-name");
+            const logoEl = selectedCard.querySelector(".team-logo img");
+            if (posEl) posEl.textContent = position;
+            if (nameEl) nameEl.textContent = name;
+            if (logoEl) {
+                logoEl.src = meta.logo;
+                logoEl.alt = meta.alt;
+            }
+
+            const targetCol = column === "right"
+                ? document.querySelector(".col-right")
+                : document.querySelector(".col-left");
+            if (targetCol && selectedCard.parentElement !== targetCol) {
+                targetCol.appendChild(selectedCard);
+            }
+
+            applyAvatarForCard(selectedCard);
+            fitDriverNames();
+            showPanelStatus("已更新选中卡片：" + name);
+        });
+
+        document.getElementById("deleteDriverBtn").addEventListener("click", () => {
+            if (!selectedCard) {
+                showPanelStatus("请先点击一张卡片进行选中");
+                return;
+            }
+
+            const name = selectedCard.querySelector(".driver-name")?.textContent.trim() || "该车手";
+            selectedCard.remove();
+            clearCardSelection();
+            fitDriverNames();
+            showPanelStatus("已删除卡片：" + name);
+        });
+
+        document.getElementById("clearSelectBtn").addEventListener("click", () => {
+            clearCardSelection();
+            showPanelStatus("已取消卡片选中");
+        });
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(initializeCards);
+        } else {
+            initializeCards();
+        }
+
+        window.addEventListener("resize", fitDriverNames);
+
+        function waitForAvatarImages() {
+            const avatars = Array.from(document.querySelectorAll(".driver-pic img"));
+            if (avatars.length === 0) return Promise.resolve();
+
+            const promises = avatars.map((img) => {
+                if (img.complete) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve) => {
+                    const done = () => {
+                        img.removeEventListener("load", done);
+                        img.removeEventListener("error", done);
+                        resolve();
+                    };
+                    img.addEventListener("load", done, { once: true });
+                    img.addEventListener("error", done, { once: true });
+                });
+            });
+
+            return Promise.race([
+                Promise.all(promises),
+                new Promise((resolve) => setTimeout(resolve, 1600))
+            ]);
+        }
+
+        function patchBrokenAvatarSourcesForExport() {
+            document.querySelectorAll(".driver-pic img").forEach((img) => {
+                if (!img.complete || img.naturalWidth === 0) {
+                    img.src = DEFAULT_AVATAR;
+                }
+            });
+        }
+
+        async function exportBoardAsImage() {
+            const btn = document.getElementById("exportBtn");
+            const hint = document.getElementById("exportHint");
+            const stage = document.getElementById("exportStage");
+
+            if (!window.html2canvas) {
+                alert("导出库加载失败，请检查网络后重试。");
+                return;
+            }
+
+            const originalLabel = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "导出中...";
+            hint.textContent = "正在渲染，请稍候";
+
+            try {
+                await waitForAvatarImages();
+                patchBrokenAvatarSourcesForExport();
+
+                const stageCanvas = await window.html2canvas(stage, {
+                    backgroundColor: null,
+                    scale: 2,
+                    width: stage.clientWidth,
+                    height: stage.clientHeight,
+                    useCORS: true,
+                    logging: false
+                });
+
+                const canvas = document.createElement("canvas");
+                canvas.width = stageCanvas.width;
+                canvas.height = stageCanvas.height;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    throw new Error("无法创建导出画布上下文");
+                }
+                const scaleFactor = canvas.width / stage.clientWidth;
+
+                drawStripedBackground(ctx, canvas.width, canvas.height, scaleFactor);
+                ctx.drawImage(stageCanvas, 0, 0);
+
+                const link = document.createElement("a");
+                const now = new Date();
+                const stamp = [
+                    now.getFullYear(),
+                    String(now.getMonth() + 1).padStart(2, "0"),
+                    String(now.getDate()).padStart(2, "0"),
+                    String(now.getHours()).padStart(2, "0"),
+                    String(now.getMinutes()).padStart(2, "0")
+                ].join("");
+
+                link.download = "f1-result-" + stamp + ".png";
+                link.href = canvas.toDataURL("image/png", 1);
+                link.click();
+
+                hint.textContent = "导出完成，已下载 PNG";
+            } catch (err) {
+                console.error(err);
+                hint.textContent = "导出失败，请重试";
+                alert("导出失败，请检查图片是否可访问后重试。");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalLabel;
+                setTimeout(() => {
+                    hint.textContent = "固定 1366x768（16:9），自动下载 PNG";
+                }, 1600);
+            }
+        }
+
+        function drawStripedBackground(ctx, width, height, scaleFactor) {
+            const darkA = "#0f1012";
+            const darkB = "#1a1b1f";
+            const stripe = 20 * scaleFactor;
+            const step = 40 * scaleFactor;
+            const diagonal = Math.sqrt(width * width + height * height);
+
+            ctx.save();
+            ctx.fillStyle = darkA;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = darkB;
+
+            for (let x = -diagonal; x <= diagonal; x += step) {
+                ctx.fillRect(x, -diagonal * 1.5, stripe, diagonal * 3);
+            }
+
+            ctx.restore();
+        }
+
+        document.getElementById("exportBtn").addEventListener("click", exportBoardAsImage);
+    </script>
+</body>
+</html>
