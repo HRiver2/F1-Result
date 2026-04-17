@@ -1,0 +1,66 @@
+F1 本地版本使用说明
+
+适用文件
+- 本地版页面：F1(2).html
+- 本地服务：server.js
+
+一、运行环境
+1) 需要安装 Node.js（建议 18 或更高）
+2) 不需要额外安装 npm 依赖，server.js 使用的是 Node 内置模块
+
+二、启动步骤
+1) 打开终端，进入项目目录，例如：
+   cd "D:/Projects/F1 Web"
+
+2) 启动本地服务
+   node server.js
+
+3) 浏览器打开
+   http://127.0.0.1:8787/F1(2).html
+
+看到类似下面提示说明启动成功：
+- F1 local server is running at http://127.0.0.1:8787/F1(2).html
+- Avatar cache directory: D:\Projects\F1 Web\.avatar-cache
+
+三、日常使用
+1) 页面编辑
+- 顶部可导出结果图
+- 下方控制区可修改赛事标题、添加车手、更新选中卡片、删除卡片
+- 点击卡片即可选中后编辑
+
+2) 头像逻辑
+- 车手卡片上的 QQ 号会通过本地服务代理获取头像
+- 第一次加载会拉取网络头像并写入 .avatar-cache
+- 后续访问优先读取本地缓存，速度更快且导出更稳
+
+3) 导出图片
+- 点击“导出结果图”按钮
+- 页面会等待头像加载并再导出 PNG
+
+四、文件说明
+- F1(2).html：本地完整版（保留头像代理与导出补丁逻辑）
+- server.js：本地静态服务 + QQ 头像缓存代理
+- .avatar-cache：头像缓存目录（自动生成）
+- index.html / F1-Pages.html：GitHub Pages 版本（已去掉头像方案）
+
+五、常见问题
+1) 头像不显示
+- 确认你访问的是 http://127.0.0.1:8787/F1(2).html
+- 不要直接双击 html 用 file 协议打开
+- 确认 server.js 正在运行
+
+2) 端口占用
+- 如果 8787 被占用，修改 server.js 里的端口后重启
+
+3) 字体不生效
+- 确认字体文件和 html 在同一目录
+- 文件名保持不变：Formula1-Regular_web_0.ttf、Formula1-Bold_web_0.ttf
+
+4) 想清空头像缓存
+- 停止服务后删除 .avatar-cache 目录中的文件
+- 重新启动 node server.js 即可
+
+六、推荐流程
+1) 先启动 node server.js
+2) 打开本地网址编辑内容
+3) 确认头像正常后再点击导出
