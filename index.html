@@ -225,7 +225,7 @@
     transform-origin: center center;
 
     /* 3. 样式微调：还原原图的厚重感 */
-    font-size: 80px;      /* 字体加大 */
+    font-size: 90px;      /* 字体加大 */
     font-weight: 900;
     color: #ffffff;
     white-space: nowrap;  /* 强制不换行，确保四个字在一行旋转 */
@@ -356,6 +356,14 @@
             background-color: #c80000;
         }
 
+        body.mode-lineup .position {
+            display: none;
+        }
+
+        body.mode-lineup .driver-card .info {
+            padding-left: 16px;
+        }
+
         .info {
             flex-grow: 1;
             display: flex;
@@ -433,7 +441,7 @@
         }
     </style>
 </head>
-<body>
+<body class="mode-lineup">
     <div class="export-stage" id="exportStage">
 
     <div class="grid-container">
@@ -444,7 +452,7 @@
             <div class="f1-official-container">
                 <img src="EAS_F125_Primary_Horizontal_White_rgb.avif" alt="F1 Logo">
             </div>
-            <div class="title-text">比赛结果</div>
+            <div class="title-text" id="boardTitle">参赛阵容</div>
         </div>
 
         <div class="drivers-board">
@@ -678,6 +686,7 @@
     </div>
 
     <div class="toolbar no-export">
+        <button id="modeToggleBtn" type="button">切换到比赛结果</button>
         <button id="exportBtn" type="button">导出结果图</button>
         <span class="hint" id="exportHint"></span>
     </div>
@@ -743,6 +752,97 @@
             sauber: { logo: "4_kick_sauber.avif", alt: "Sauber" },
             williams: { logo: "10_williams_racing.avif", alt: "Williams" }
         };
+
+        const DISPLAY_MODE_LABEL = {
+            lineup: "参赛阵容",
+            result: "比赛结果"
+        };
+        const TEAM_LINEUP_ORDER = [
+            "mclaren", "ferrari", "redbull", "mercedes", "aston",
+            "alpine", "haas", "rb", "sauber", "williams"
+        ];
+        let currentDisplayMode = "lineup";
+
+        function getCardPositionNumber(card) {
+            const raw = card.querySelector(".position")?.textContent.trim() || "0";
+            const value = Number(raw);
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        function rebalanceCardsForMode(mode) {
+            const leftCol = document.querySelector(".col-left");
+            const rightCol = document.querySelector(".col-right");
+            if (!leftCol || !rightCol) return;
+
+            const cards = [
+                ...leftCol.querySelectorAll(".driver-card"),
+                ...rightCol.querySelectorAll(".driver-card")
+            ];
+            if (cards.length === 0) return;
+
+            let ordered = [];
+
+            if (mode === "lineup") {
+                const groups = new Map();
+                TEAM_LINEUP_ORDER.forEach((team) => groups.set(team, []));
+
+                cards.forEach((card) => {
+                    const team = getCardTeam(card);
+                    if (!groups.has(team)) {
+                        groups.set(team, []);
+                    }
+                    groups.get(team).push(card);
+                });
+
+                TEAM_LINEUP_ORDER.forEach((team) => {
+                    ordered.push(...(groups.get(team) || []));
+                    groups.delete(team);
+                });
+
+                groups.forEach((teamCards) => ordered.push(...teamCards));
+            } else {
+                ordered = cards.sort((a, b) => getCardPositionNumber(a) - getCardPositionNumber(b));
+            }
+
+            const leftCount = Math.ceil(ordered.length / 2);
+            ordered.forEach((card, index) => {
+                if (index < leftCount) {
+                    leftCol.appendChild(card);
+                } else {
+                    rightCol.appendChild(card);
+                }
+            });
+        }
+
+        function setDisplayMode(mode) {
+            const nextMode = mode === "result" ? "result" : "lineup";
+            currentDisplayMode = nextMode;
+
+            document.body.classList.toggle("mode-lineup", nextMode === "lineup");
+
+            const titleEl = document.getElementById("boardTitle");
+            if (titleEl) {
+                titleEl.textContent = DISPLAY_MODE_LABEL[nextMode];
+            }
+
+            const toggleBtn = document.getElementById("modeToggleBtn");
+            if (toggleBtn) {
+                toggleBtn.textContent =
+                    nextMode === "lineup" ? "切换到比赛结果" : "切换到参赛阵容";
+            }
+
+            const exportBtn = document.getElementById("exportBtn");
+            if (exportBtn) {
+                exportBtn.textContent = nextMode === "lineup" ? "导出阵容图" : "导出结果图";
+            }
+
+            const positionLabel = document.querySelector('label[for="driverPosition"]');
+            if (positionLabel) {
+                positionLabel.textContent = nextMode === "lineup" ? "序号" : "名次";
+            }
+
+            rebalanceCardsForMode(nextMode);
+        }
 
         function fitDriverNames() {
             const BASE_FONT_SIZE = 18;
@@ -831,7 +931,8 @@
 
         document.getElementById("updateRaceBtn").addEventListener("click", () => {
             const raceText = document.getElementById("raceInfoInput").value.trim();
-            document.getElementById("raceInfoText").textContent = raceText || "未命名赛事 / 结果表";
+            const fallbackSuffix = currentDisplayMode === "lineup" ? "参赛阵容" : "结果表";
+            document.getElementById("raceInfoText").textContent = raceText || ("未命名赛事 / " + fallbackSuffix);
             showPanelStatus("赛事信息已更新");
         });
 
@@ -872,6 +973,7 @@
 
             targetCol.appendChild(card);
             selectCard(card);
+            rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
             showPanelStatus("已添加 " + name + "（P" + position + "）");
 
@@ -921,6 +1023,7 @@
             if (targetCol && selectedCard.parentElement !== targetCol) {
                 targetCol.appendChild(selectedCard);
             }
+            rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
             showPanelStatus("已更新选中卡片：" + name);
         });
@@ -934,6 +1037,7 @@
             const name = selectedCard.querySelector(".driver-name")?.textContent.trim() || "该车手";
             selectedCard.remove();
             clearCardSelection();
+            rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
             showPanelStatus("已删除卡片：" + name);
         });
@@ -1038,6 +1142,11 @@
         }
 
         document.getElementById("exportBtn").addEventListener("click", exportBoardAsImage);
+        document.getElementById("modeToggleBtn").addEventListener("click", () => {
+            setDisplayMode(currentDisplayMode === "lineup" ? "result" : "lineup");
+            fitDriverNames();
+        });
+        setDisplayMode("lineup");
     </script>
 </body>
 </html>
