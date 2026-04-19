@@ -191,51 +191,68 @@
             color: #ffff00;
             font-size: 18px;
             font-weight: bold;
-            letter-spacing: 2px;
+            font-family: "Formula1-Regular", "PingFang SC", "Microsoft YaHei", sans-serif;
+            letter-spacing: 1px;
+            max-width: 360px;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
         }
 
-        /* 左侧：发车顺位大字区域 (修复了布局) */
+        .race-info-f1 {
+            font-family: "Formula1-Bold", "Formula1-Regular", sans-serif;
+            font-weight: 700;
+        }
+
+        .race-info.is-two-lines {
+            font-size: 18px;
+            white-space: normal;
+            text-overflow: unset;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            line-height: 1.05;
+        }
+
+        /* 左侧：图标和标题都使用固定坐标，避免漂移 */
         .left-banner {
-            width: 160px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 20px;
+            position: relative;
+            width: 170px;
+            flex: 0 0 170px;
+            min-height: 430px;
         }
 
         /* F1 官方 Logo 图片容器 */
         .f1-official-container {
-            width: 300px; /* 调整你的 F1 logo 宽度 */
-            margin-bottom: -30px;
+            position: absolute;
+            top: 16px;
+            left: 0;
+            width: 170px;
+            margin: 0;
         }
 
         .f1-official-container img {
-            width: 75%;
+            width: 100%;
             height: auto;
             display: block;
         }
 
-        /* 修复后的垂直标题：纯 Flexbox，不使用绝对定位 */
         .title-text {
-    /* 1. 关键：逆时针旋转 90 度 */
-    transform: rotate(-90deg);
-
-    /* 2. 关键：确保旋转中心在左上角或中心，方便对齐 */
-    transform-origin: center center;
-
-    /* 3. 样式微调：还原原图的厚重感 */
-    font-size: 90px;      /* 字体加大 */
-    font-weight: 900;
-    color: #ffffff;
-    white-space: nowrap;  /* 强制不换行，确保四个字在一行旋转 */
-    
-    /* 4. 布局微调：因为旋转后会"飘"走，需要通过定位拉回来 */
-    position: absolute;
-    top: 50%;
-    left: -10%;
-    margin-left: -40px;   /* 根据实际效果微调左右位置 */
-}
+            position: absolute;
+            top: 420px;
+            left: 28px;
+            transform: rotate(-90deg);
+            transform-origin: left top;
+            font-size: 82px;
+            font-weight: 900;
+            color: #ffffff;
+            white-space: nowrap;
+            margin: 0;
+        }
 
         /* 右侧：车手顺位网格 */
         .drivers-board {
@@ -761,6 +778,7 @@
             "mclaren", "ferrari", "redbull", "mercedes", "aston",
             "alpine", "haas", "rb", "sauber", "williams"
         ];
+        const BOARD_STORAGE_KEY = "f1-board-state-online-v1";
         let currentDisplayMode = "lineup";
 
         function getCardPositionNumber(card) {
@@ -814,7 +832,7 @@
             });
         }
 
-        function setDisplayMode(mode) {
+        function setDisplayMode(mode, shouldPersist = true) {
             const nextMode = mode === "result" ? "result" : "lineup";
             currentDisplayMode = nextMode;
 
@@ -842,6 +860,10 @@
             }
 
             rebalanceCardsForMode(nextMode);
+
+            if (shouldPersist) {
+                saveBoardState();
+            }
         }
 
         function fitDriverNames() {
@@ -867,6 +889,143 @@
             });
         }
 
+        function fitRaceInfoText() {
+            const raceInfoEl = document.getElementById("raceInfoText");
+            if (!raceInfoEl) return;
+
+            const BASE_FONT_SIZE = 18;
+            const MIN_FONT_SIZE = 12;
+
+            raceInfoEl.classList.remove("is-two-lines");
+            raceInfoEl.style.fontSize = BASE_FONT_SIZE + "px";
+
+            while (
+                raceInfoEl.scrollWidth > raceInfoEl.clientWidth &&
+                parseFloat(raceInfoEl.style.fontSize) > MIN_FONT_SIZE
+            ) {
+                const nextSize = parseFloat(raceInfoEl.style.fontSize) - 0.5;
+                raceInfoEl.style.fontSize = nextSize + "px";
+            }
+
+            if (raceInfoEl.scrollWidth > raceInfoEl.clientWidth) {
+                raceInfoEl.style.fontSize = BASE_FONT_SIZE + "px";
+                raceInfoEl.classList.add("is-two-lines");
+            }
+        }
+
+        function renderRaceInfoText(rawText) {
+            const raceInfoEl = document.getElementById("raceInfoText");
+            if (!raceInfoEl) return;
+
+            const text = (rawText || "").trim();
+            raceInfoEl.textContent = "";
+
+            if (!text) return;
+
+            const regex = /([A-Za-z0-9]+)/g;
+            let lastIndex = 0;
+            let match;
+
+            while ((match = regex.exec(text)) !== null) {
+                const start = match.index;
+                const end = start + match[0].length;
+
+                if (start > lastIndex) {
+                    raceInfoEl.appendChild(document.createTextNode(text.slice(lastIndex, start)));
+                }
+
+                const latinSpan = document.createElement("span");
+                latinSpan.className = "race-info-f1";
+                latinSpan.textContent = match[0];
+                raceInfoEl.appendChild(latinSpan);
+
+                lastIndex = end;
+            }
+
+            if (lastIndex < text.length) {
+                raceInfoEl.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
+        }
+
+        function cardToData(card) {
+            return {
+                position: card.querySelector(".position")?.textContent.trim() || "",
+                name: card.querySelector(".driver-name")?.textContent.trim() || "",
+                team: getCardTeam(card),
+                retired: card.classList.contains("is-retired")
+            };
+        }
+
+        function saveBoardState() {
+            try {
+                const leftCards = Array.from(document.querySelectorAll(".col-left .driver-card")).map(cardToData);
+                const rightCards = Array.from(document.querySelectorAll(".col-right .driver-card")).map(cardToData);
+                const raceText = document.getElementById("raceInfoInput")?.value.trim()
+                    || document.getElementById("raceInfoText")?.textContent.trim()
+                    || "";
+
+                const snapshot = {
+                    version: 1,
+                    mode: currentDisplayMode,
+                    raceText,
+                    leftCards,
+                    rightCards,
+                    savedAt: Date.now()
+                };
+
+                window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(snapshot));
+            } catch (err) {
+                console.warn("保存本地结果失败", err);
+            }
+        }
+
+        function restoreBoardState() {
+            try {
+                const raw = window.localStorage.getItem(BOARD_STORAGE_KEY);
+                if (!raw) return false;
+
+                const snapshot = JSON.parse(raw);
+                if (!snapshot || typeof snapshot !== "object") return false;
+
+                const leftCol = document.querySelector(".col-left");
+                const rightCol = document.querySelector(".col-right");
+                if (!leftCol || !rightCol) return false;
+
+                const leftCards = Array.isArray(snapshot.leftCards) ? snapshot.leftCards : [];
+                const rightCards = Array.isArray(snapshot.rightCards) ? snapshot.rightCards : [];
+                if (leftCards.length + rightCards.length === 0) return false;
+
+                clearCardSelection();
+                leftCol.innerHTML = "";
+                rightCol.innerHTML = "";
+
+                leftCards.forEach((item) => {
+                    const card = createDriverCard(item || {});
+                    leftCol.appendChild(card);
+                });
+                rightCards.forEach((item) => {
+                    const card = createDriverCard(item || {});
+                    rightCol.appendChild(card);
+                });
+
+                const restoredRaceText = (snapshot.raceText || "").trim();
+                const inputEl = document.getElementById("raceInfoInput");
+                if (inputEl) {
+                    inputEl.value = restoredRaceText;
+                }
+                if (restoredRaceText) {
+                    renderRaceInfoText(restoredRaceText);
+                }
+
+                const restoredMode = snapshot.mode === "result" ? "result" : "lineup";
+                setDisplayMode(restoredMode, false);
+                return true;
+            } catch (err) {
+                console.warn("恢复本地结果失败", err);
+                return false;
+            }
+        }
+
         function createDriverCard({ position, name, team, retired }) {
             const meta = TEAM_META[team] || TEAM_META.ferrari;
             const safeName = (name || "New Driver").trim() || "New Driver";
@@ -883,7 +1042,10 @@
         }
 
         function initializeCards() {
+            const initialRaceText = document.getElementById("raceInfoText")?.textContent || "";
+            renderRaceInfoText(initialRaceText);
             fitDriverNames();
+            fitRaceInfoText();
         }
 
         let selectedCard = null;
@@ -932,7 +1094,10 @@
         document.getElementById("updateRaceBtn").addEventListener("click", () => {
             const raceText = document.getElementById("raceInfoInput").value.trim();
             const fallbackSuffix = currentDisplayMode === "lineup" ? "参赛阵容" : "结果表";
-            document.getElementById("raceInfoText").textContent = raceText || ("未命名赛事 / " + fallbackSuffix);
+            const finalRaceText = raceText || ("未命名赛事 / " + fallbackSuffix);
+            renderRaceInfoText(finalRaceText);
+            fitRaceInfoText();
+            saveBoardState();
             showPanelStatus("赛事信息已更新");
         });
 
@@ -975,6 +1140,7 @@
             selectCard(card);
             rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
+            saveBoardState();
             showPanelStatus("已添加 " + name + "（P" + position + "）");
 
             document.getElementById("driverPosition").value = String(Number(position) + 1);
@@ -1025,6 +1191,7 @@
             }
             rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
+            saveBoardState();
             showPanelStatus("已更新选中卡片：" + name);
         });
 
@@ -1039,6 +1206,7 @@
             clearCardSelection();
             rebalanceCardsForMode(currentDisplayMode);
             fitDriverNames();
+            saveBoardState();
             showPanelStatus("已删除卡片：" + name);
         });
 
@@ -1047,13 +1215,17 @@
             showPanelStatus("已取消卡片选中");
         });
 
+        const hasRestoredBoardState = restoreBoardState();
+        if (!hasRestoredBoardState) {
+            setDisplayMode("lineup", false);
+            saveBoardState();
+        }
+
         if (document.fonts && document.fonts.ready) {
             document.fonts.ready.then(initializeCards);
         } else {
             initializeCards();
         }
-
-        window.addEventListener("resize", fitDriverNames);
 
         async function exportBoardAsImage() {
             const btn = document.getElementById("exportBtn");
@@ -1145,8 +1317,13 @@
         document.getElementById("modeToggleBtn").addEventListener("click", () => {
             setDisplayMode(currentDisplayMode === "lineup" ? "result" : "lineup");
             fitDriverNames();
+            fitRaceInfoText();
         });
-        setDisplayMode("lineup");
+
+        window.addEventListener("resize", () => {
+            fitDriverNames();
+            fitRaceInfoText();
+        });
     </script>
 </body>
 </html>
